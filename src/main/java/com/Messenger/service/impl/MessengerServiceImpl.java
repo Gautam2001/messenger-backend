@@ -1,16 +1,21 @@
 package com.Messenger.service.impl;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import com.Messenger.Dao.MessageDao;
 import com.Messenger.Dao.MessengerUsersDao;
+import com.Messenger.Dto.ChatHistoryDTO;
 import com.Messenger.Dto.SendMessageDTO;
+import com.Messenger.Dto.UserContactDTO;
 import com.Messenger.Dto.UsernameDTO;
 import com.Messenger.Entity.MessageEntity;
 import com.Messenger.Entity.MessengerUsersEntity;
@@ -93,6 +98,57 @@ public class MessengerServiceImpl implements MessengerService {
 		response.put("messageId", savedMessage.getMessageId());
 		response.put("sentAt", savedMessage.getSentAt());
 		return CommonUtils.prepareResponse(response, "message sent successfully via Messenger.", true);
+	}
+	
+	@Override
+	public HashMap<String, Object> getChatHistory(@Valid ChatHistoryDTO chatHistoryDTO) {
+	    String username = CommonUtils.normalizeUsername(chatHistoryDTO.getUsername());
+	    String contactUsername = CommonUtils.normalizeUsername(chatHistoryDTO.getContactUsername());
+	    CommonUtils.logMethodEntry(this, "Get chat history between: " + username + " and " + contactUsername);
+	    
+	    CommonUtils.fetchUserIfExists(messengerUsersDao, contactUsername,
+	    		contactUsername + " does not have an account yet.");
+
+	    List<MessageEntity> messages = messageDao.getConversationBetweenUsers(username, contactUsername, chatHistoryDTO.getCursorId(), PageRequest.of(0, 25));
+	    
+	    Long nextCursorId = null;
+	    if (!messages.isEmpty()) {
+	        nextCursorId = messages.get(messages.size() - 1).getMessageId();
+	    }
+
+	    HashMap<String, Object> response = new HashMap<>();
+	    response.put("chatHistory", messages);
+	    response.put("nextCursorId", nextCursorId);
+	    return CommonUtils.prepareResponse(response, "Chat history fetched successfully", true);
+	}
+
+	@Override
+	public HashMap<String, Object> getContactList(@Valid UsernameDTO usernameDTO) {
+	    String username = CommonUtils.normalizeUsername(usernameDTO.getUsername());
+	    CommonUtils.logMethodEntry(this, "Get Contact List Request for: " + username);
+
+	    HashMap<String, Object> response = new HashMap<>();
+	    List<UserContactDTO> contactList = new ArrayList<>();
+
+	    List<MessageEntity> messages = messageDao.findLatestMessagesPerConversation(username);
+	    for (MessageEntity message : messages) {
+	        String contactUsername = message.getSender().equals(username) ? message.getReceiver() : message.getSender();
+
+	        MessengerUsersEntity contactUser = messengerUsersDao.getUserByUsername(contactUsername).orElse(null);
+
+	        UserContactDTO contactDTO = new UserContactDTO(
+	            contactUser != null ? contactUser.getName() : contactUsername,
+	            contactUsername,
+	            message.getContent(),
+	            message.getSentAt(),
+	            message.getStatus()
+	        );
+	        contactList.add(contactDTO);
+	    }
+	    contactList.sort((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()));
+
+	    response.put("contactList", contactList);
+	    return CommonUtils.prepareResponse(response, "Contact List fetched successfully", true);
 	}
 
 }

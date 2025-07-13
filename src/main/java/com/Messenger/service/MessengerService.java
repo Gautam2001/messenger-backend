@@ -4,6 +4,7 @@ import java.util.HashMap;
 
 import org.springframework.stereotype.Component;
 
+import com.Messenger.Dto.ChatHistoryDTO;
 import com.Messenger.Dto.SendMessageDTO;
 import com.Messenger.Dto.UsernameDTO;
 
@@ -16,4 +17,7 @@ public interface MessengerService {
 
 	HashMap<String, Object> sendMessage(@Valid SendMessageDTO sendMessageDTO);
 
+	HashMap<String, Object> getChatHistory(@Valid ChatHistoryDTO chatHistoryDTO);
+
+	HashMap<String, Object> getContactList(@Valid UsernameDTO usernameDTO);
 }
