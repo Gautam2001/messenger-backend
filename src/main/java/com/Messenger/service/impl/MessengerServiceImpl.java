@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -45,9 +46,14 @@ public class MessengerServiceImpl implements MessengerService {
 	public HashMap<String, Object> joinMessengerApp(@Valid UsernameDTO usernameDTO) {
 		String username = CommonUtils.normalizeUsername(usernameDTO.getUsername());
 		CommonUtils.logMethodEntry(this, "Join Messenger Request for: " + username);
+		HashMap<String, Object> response = new HashMap<>();
 
-		String name = callLoginService.checkUserExistsInLoginService(username).orElseThrow(
-				() -> new AppException("Unable to validate user from Login service", HttpStatus.BAD_GATEWAY));
+		Optional<String> nameOpt = callLoginService.checkUserExistsInLoginService(username);
+
+		if (nameOpt.isEmpty()) {
+		    return CommonUtils.prepareResponse(response, "User does not exist, Please Signup.", false);
+		}
+		String name = nameOpt.get();
 
 		CommonUtils.ensureUserDoesNotExist(messengerUsersDao, username);
 
@@ -59,8 +65,7 @@ public class MessengerServiceImpl implements MessengerService {
 			throw new AppException("Failed to Join. Please try again.", HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 
-		HashMap<String, Object> response = new HashMap<>();
-		return CommonUtils.prepareResponse(response, "User successfully joined Messenger", true);
+		return CommonUtils.prepareResponse(response, "User successfully joined Messenger.", true);
 	}
 
 	@Override
