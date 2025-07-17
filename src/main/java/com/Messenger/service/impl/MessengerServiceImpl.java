@@ -43,6 +43,17 @@ public class MessengerServiceImpl implements MessengerService {
 	SimpMessagingTemplate messagingTemplate;
 
 	@Override
+	public HashMap<String, Object> userExistsCheck(@Valid UsernameDTO usernameDTO) {
+		String username = CommonUtils.normalizeUsername(usernameDTO.getUsername());
+		CommonUtils.logMethodEntry(this, "User Exists Check Request for: " + username);
+		HashMap<String, Object> response = new HashMap<>();
+
+		CommonUtils.fetchUserIfExists(messengerUsersDao, username, "User does not exist. Join Messenger.");
+
+		return CommonUtils.prepareResponse(response, "User exists in Messenger.", true);
+	}
+
+	@Override
 	public HashMap<String, Object> joinMessengerApp(@Valid UsernameDTO usernameDTO) {
 		String username = CommonUtils.normalizeUsername(usernameDTO.getUsername());
 		CommonUtils.logMethodEntry(this, "Join Messenger Request for: " + username);

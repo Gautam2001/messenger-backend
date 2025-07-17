@@ -33,6 +33,15 @@ public class MessengerController {
 
 		return ResponseEntity.ok(CommonUtils.prepareResponse(response, "pong", true));
 	}
+	
+	@PostMapping("/exists")
+	public ResponseEntity<HashMap<String, Object>> userExistsCheck(@RequestBody @Valid UsernameDTO usernameDTO) {
+		CommonUtils.logMethodEntry(this);
+
+		HashMap<String, Object> response = messengerService.userExistsCheck(usernameDTO);
+
+		return ResponseEntity.ok(response);
+	}
 
 	@PostMapping("/join")
 	public ResponseEntity<HashMap<String, Object>> joinMessengerApp(@RequestBody @Valid UsernameDTO usernameDTO) {
