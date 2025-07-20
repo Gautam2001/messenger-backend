@@ -48,8 +48,9 @@ public class MessengerServiceImpl implements MessengerService {
 		CommonUtils.logMethodEntry(this, "User Exists Check Request for: " + username);
 		HashMap<String, Object> response = new HashMap<>();
 
-		CommonUtils.fetchUserIfExists(messengerUsersDao, username, "User does not exist. Join Messenger.");
+		MessengerUsersEntity user = CommonUtils.fetchUserIfExists(messengerUsersDao, username, "User does not exist. Join Messenger.");
 
+		response.put("userId", user.getUserId());
 		return CommonUtils.prepareResponse(response, "User exists in Messenger.", true);
 	}
 
