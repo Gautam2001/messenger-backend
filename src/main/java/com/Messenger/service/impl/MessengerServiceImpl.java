@@ -127,7 +127,7 @@ public class MessengerServiceImpl implements MessengerService {
 
 	    List<MessageEntity> messages = messageDao.getConversationBetweenUsers(username, contactUsername, chatHistoryDTO.getCursorId(), PageRequest.of(0, 25));
 	    
-	    Long nextCursorId = null;
+	    Long nextCursorId = -1L;
 	    if (!messages.isEmpty()) {
 	        nextCursorId = messages.get(messages.size() - 1).getMessageId();
 	    }

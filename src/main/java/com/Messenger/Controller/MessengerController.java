@@ -61,8 +61,7 @@ public class MessengerController {
 		return ResponseEntity.ok(response);
 	}
 	
-	//bring in pagination in this
-	@GetMapping("/chat-history")
+	@PostMapping("/chat-history")
 	public ResponseEntity<HashMap<String, Object>> getChatHistory(@RequestBody @Valid ChatHistoryDTO chatHistoryDTO) {
 		CommonUtils.logMethodEntry(this);
 
@@ -71,7 +70,7 @@ public class MessengerController {
 		return ResponseEntity.ok(response);
 	}
 	
-	@GetMapping("/contacts")
+	@PostMapping("/contacts")
 	public ResponseEntity<HashMap<String, Object>> getContactList(@RequestBody @Valid UsernameDTO usernameDTO) {
 		CommonUtils.logMethodEntry(this);
 
