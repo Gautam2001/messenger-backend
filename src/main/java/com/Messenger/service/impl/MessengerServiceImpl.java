@@ -1,6 +1,7 @@
 package com.Messenger.service.impl;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -105,11 +106,14 @@ public class MessengerServiceImpl implements MessengerService {
 		messagePayload.put("senderName", sender.getName());
 		messagePayload.put("receiver", receiverUsername);
 		messagePayload.put("content", savedMessage.getContent());
+		messagePayload.put("messageId", savedMessage.getMessageId().toString());
 
-		String topic = "/topic/messages/" + receiver.getUserId();
-		CommonUtils.logMethodEntry(this, "Sending to WebSocket topic: " + topic);
+		String receiverTopic = "/topic/messages/" + receiver.getUserId();
+		String senderTopic = "/topic/messages/" + sender.getUserId();
+		CommonUtils.logMethodEntry(this, "Sending to WebSocket topic: " + receiverTopic + " and " + senderTopic);
 		
-		messagingTemplate.convertAndSend(topic, messagePayload);
+		messagingTemplate.convertAndSend(receiverTopic, messagePayload);
+		messagingTemplate.convertAndSend(senderTopic, messagePayload);
 
 		HashMap<String, Object> response = new HashMap<>();
 		response.put("messageId", savedMessage.getMessageId());
@@ -127,10 +131,11 @@ public class MessengerServiceImpl implements MessengerService {
 	    		contactUsername + " does not have an account yet.");
 
 	    List<MessageEntity> messages = messageDao.getConversationBetweenUsers(username, contactUsername, chatHistoryDTO.getCursorId(), PageRequest.of(0, 25));
+	    Collections.reverse(messages);
 	    
 	    Long nextCursorId = -1L;
 	    if (!messages.isEmpty()) {
-	        nextCursorId = messages.get(messages.size() - 1).getMessageId();
+	        nextCursorId = messages.get(0).getMessageId();
 	    }
 
 	    HashMap<String, Object> response = new HashMap<>();
