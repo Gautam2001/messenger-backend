@@ -78,6 +78,15 @@ public class MessengerController {
 
 		return ResponseEntity.ok(response);
 	}
+	
+	@PostMapping("/search-user")
+	public ResponseEntity<HashMap<String, Object>> getUserForSearch(@RequestBody @Valid ChatHistoryDTO usernamesDTO) {
+		CommonUtils.logMethodEntry(this);
+
+		HashMap<String, Object> response = messengerService.getUserForSearch(usernamesDTO);
+
+		return ResponseEntity.ok(response);
+	}
 
 	@GetMapping("/ws/test")
 	public String testWs() {

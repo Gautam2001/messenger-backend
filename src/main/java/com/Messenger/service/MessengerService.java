@@ -22,5 +22,7 @@ public interface MessengerService {
 	HashMap<String, Object> getChatHistory(@Valid ChatHistoryDTO chatHistoryDTO);
 
 	HashMap<String, Object> getContactList(@Valid UsernameDTO usernameDTO);
+
+	HashMap<String, Object> getUserForSearch(@Valid ChatHistoryDTO usernamesDTO);
 	
 }

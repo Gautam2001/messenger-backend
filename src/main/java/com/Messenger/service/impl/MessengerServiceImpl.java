@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -105,8 +106,9 @@ public class MessengerServiceImpl implements MessengerService {
 		messagePayload.put("sender", senderUsername);
 		messagePayload.put("senderName", sender.getName());
 		messagePayload.put("receiver", receiverUsername);
-		messagePayload.put("content", savedMessage.getContent());
 		messagePayload.put("messageId", savedMessage.getMessageId().toString());
+		messagePayload.put("content", savedMessage.getContent());
+		messagePayload.put("sentAt", savedMessage.getSentAt().toString());		
 
 		String receiverTopic = "/topic/messages/" + receiver.getUserId();
 		String senderTopic = "/topic/messages/" + sender.getUserId();
@@ -127,6 +129,8 @@ public class MessengerServiceImpl implements MessengerService {
 	    String contactUsername = CommonUtils.normalizeUsername(chatHistoryDTO.getContactUsername());
 	    CommonUtils.logMethodEntry(this, "Get chat history between: " + username + " and " + contactUsername);
 	    
+	    CommonUtils.fetchUserIfExists(messengerUsersDao, username,
+				"User does not exist, signup first.");	    
 	    CommonUtils.fetchUserIfExists(messengerUsersDao, contactUsername,
 	    		contactUsername + " does not have an account yet.");
 
@@ -148,6 +152,8 @@ public class MessengerServiceImpl implements MessengerService {
 	public HashMap<String, Object> getContactList(@Valid UsernameDTO usernameDTO) {
 	    String username = CommonUtils.normalizeUsername(usernameDTO.getUsername());
 	    CommonUtils.logMethodEntry(this, "Get Contact List Request for: " + username);
+	    CommonUtils.fetchUserIfExists(messengerUsersDao, username,
+				"User does not exist, signup first.");
 
 	    HashMap<String, Object> response = new HashMap<>();
 	    List<UserContactDTO> contactList = new ArrayList<>();
@@ -171,6 +177,32 @@ public class MessengerServiceImpl implements MessengerService {
 
 	    response.put("contactList", contactList);
 	    return CommonUtils.prepareResponse(response, "Contact List fetched successfully", true);
+	}
+
+	public HashMap<String, Object> getUserForSearch(@Valid ChatHistoryDTO searchDTO) {
+	    String username = CommonUtils.normalizeUsername(searchDTO.getUsername());
+	    String searchTerm = CommonUtils.normalizeUsername(searchDTO.getContactUsername()); 
+	    
+	    CommonUtils.logMethodEntry(this, "Global user search for: " + searchTerm);
+	    CommonUtils.fetchUserIfExists(messengerUsersDao, username, "User does not exist, signup first.");
+
+	    List<MessengerUsersEntity> matchedUsers = messengerUsersDao.findByUsernameContainingIgnoreCase(searchTerm);
+	    
+	    matchedUsers.removeIf(u -> u.getUsername().equalsIgnoreCase(username));
+
+	    List<Map<String, Object>> userResults = matchedUsers.stream()
+	        .map(u -> {
+	            Map<String, Object> user = new HashMap<>();
+	            user.put("userId", u.getUserId());
+	            user.put("username", u.getUsername());
+	            user.put("name", u.getName());
+	            return user;
+	        })
+	        .collect(Collectors.toList());
+
+	    HashMap<String, Object> response = new HashMap<>();
+	    response.put("users", userResults);
+	    return CommonUtils.prepareResponse(response, "Matching users found.", true);
 	}
 
 }
