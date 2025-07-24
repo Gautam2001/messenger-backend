@@ -33,7 +33,7 @@ public class MessengerController {
 
 		return ResponseEntity.ok(CommonUtils.prepareResponse(response, "pong", true));
 	}
-	
+
 	@PostMapping("/exists")
 	public ResponseEntity<HashMap<String, Object>> userExistsCheck(@RequestBody @Valid UsernameDTO usernameDTO) {
 		CommonUtils.logMethodEntry(this);
@@ -60,7 +60,7 @@ public class MessengerController {
 
 		return ResponseEntity.ok(response);
 	}
-	
+
 	@PostMapping("/chat-history")
 	public ResponseEntity<HashMap<String, Object>> getChatHistory(@RequestBody @Valid ChatHistoryDTO chatHistoryDTO) {
 		CommonUtils.logMethodEntry(this);
@@ -69,7 +69,7 @@ public class MessengerController {
 
 		return ResponseEntity.ok(response);
 	}
-	
+
 	@PostMapping("/contacts")
 	public ResponseEntity<HashMap<String, Object>> getContactList(@RequestBody @Valid UsernameDTO usernameDTO) {
 		CommonUtils.logMethodEntry(this);
@@ -78,12 +78,31 @@ public class MessengerController {
 
 		return ResponseEntity.ok(response);
 	}
-	
+
 	@PostMapping("/search-user")
 	public ResponseEntity<HashMap<String, Object>> getUserForSearch(@RequestBody @Valid ChatHistoryDTO usernamesDTO) {
 		CommonUtils.logMethodEntry(this);
 
 		HashMap<String, Object> response = messengerService.getUserForSearch(usernamesDTO);
+
+		return ResponseEntity.ok(response);
+	}
+
+	@PostMapping("/message-delivered")
+	public ResponseEntity<HashMap<String, Object>> updateStatusToDelivered(
+			@RequestBody @Valid UsernameDTO usernameDTO) {
+		CommonUtils.logMethodEntry(this);
+
+		HashMap<String, Object> response = messengerService.updateStatusToDelivered(usernameDTO);
+
+		return ResponseEntity.ok(response);
+	}
+
+	@PostMapping("/message-seen")
+	public ResponseEntity<HashMap<String, Object>> updateStatusToSeen(@RequestBody @Valid ChatHistoryDTO usernamesDTO) {
+		CommonUtils.logMethodEntry(this);
+
+		HashMap<String, Object> response = messengerService.updateStatusToSeen(usernamesDTO);
 
 		return ResponseEntity.ok(response);
 	}

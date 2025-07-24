@@ -1,13 +1,18 @@
 package com.Messenger.Dao;
 
+import java.time.Instant;
 import java.util.List;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.Messenger.Entity.MessageEntity;
+import com.Messenger.Entity.MessageEntity.Status;
+
+import jakarta.transaction.Transactional;
 
 public interface MessageDao extends JpaRepository<MessageEntity, Long> {
 
@@ -19,5 +24,20 @@ public interface MessageDao extends JpaRepository<MessageEntity, Long> {
 			+ "OR m.messageId < :cursorId) ORDER BY m.sentAt DESC")
 	List<MessageEntity> getConversationBetweenUsers(@Param("username") String username,
 			@Param("contactUsername") String contactUsername, @Param("cursorId") Long cursorId, Pageable pageable);
+
+	@Transactional
+	@Modifying
+	@Query("UPDATE MessageEntity m SET m.status = :delivered, m.deliveredAt = :now WHERE m.receiver = :username AND m.status = :sent")
+	int updateStatusToDelivered(@Param("delivered") Status delivered, @Param("now") Instant now,
+			@Param("username") String username, @Param("sent") Status sent);
+
+	@Transactional
+	@Modifying
+	@Query("UPDATE MessageEntity m SET m.status = :seen, m.seenAt = :now WHERE m.sender = :sender AND m.receiver = :receiver AND m.status != :seen")
+	int updateStatusToSeen(@Param("seen") Status seen, @Param("now") Instant now, @Param("sender") String sender,
+			@Param("receiver") String receiver);
+
+	@Query("SELECT m.receiver, COUNT(m) FROM MessageEntity m WHERE m.sender = :sender AND m.status IN ('SENT', 'DELIVERED') GROUP BY m.receiver")
+	List<Object[]> findUnseenCountsBySender(@Param("sender") String sender);
 
 }

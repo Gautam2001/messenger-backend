@@ -14,7 +14,7 @@ import jakarta.validation.Valid;
 public interface MessengerService {
 
 	HashMap<String, Object> userExistsCheck(@Valid UsernameDTO usernameDTO);
-	
+
 	HashMap<String, Object> joinMessengerApp(@Valid UsernameDTO usernameDTO);
 
 	HashMap<String, Object> sendMessage(@Valid SendMessageDTO sendMessageDTO);
@@ -24,5 +24,9 @@ public interface MessengerService {
 	HashMap<String, Object> getContactList(@Valid UsernameDTO usernameDTO);
 
 	HashMap<String, Object> getUserForSearch(@Valid ChatHistoryDTO usernamesDTO);
-	
+
+	HashMap<String, Object> updateStatusToDelivered(@Valid UsernameDTO usernameDTO);
+
+	HashMap<String, Object> updateStatusToSeen(@Valid ChatHistoryDTO usernamesDTO);
+
 }
