@@ -37,7 +37,19 @@ public interface MessageDao extends JpaRepository<MessageEntity, Long> {
 	int updateStatusToSeen(@Param("seen") Status seen, @Param("now") Instant now, @Param("sender") String sender,
 			@Param("receiver") String receiver);
 
-	@Query("SELECT m.receiver, COUNT(m) FROM MessageEntity m WHERE m.sender = :sender AND m.status IN ('SENT', 'DELIVERED') GROUP BY m.receiver")
-	List<Object[]> findUnseenCountsBySender(@Param("sender") String sender);
+	@Query("SELECT m.sender, COUNT(m) FROM MessageEntity m WHERE m.receiver = :receiver AND m.status IN ('SENT', 'DELIVERED') GROUP BY m.sender")
+	List<Object[]> findUnseenCountsByReceiver(@Param("receiver") String receiver);
+
+	@Modifying
+	@Transactional
+	@Query("UPDATE MessageEntity m SET m.status = :status, m.deliveredAt = :updatedAt WHERE m.messageId IN :ids")
+	int updateDeliveredStatusesByIds(@Param("ids") List<Long> ids, @Param("status") MessageEntity.Status status,
+			@Param("updatedAt") Instant updatedAt);
+
+	@Modifying
+	@Transactional
+	@Query("UPDATE MessageEntity m SET m.status = :status, m.seenAt = :updatedAt WHERE m.messageId IN :ids")
+	int updateSeenStatusesByIds(@Param("ids") List<Long> ids, @Param("status") MessageEntity.Status status,
+			@Param("updatedAt") Instant updatedAt);
 
 }

@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.Messenger.Dao.MessengerUsersDao;
 import com.Messenger.Entity.MessengerUsersEntity;
@@ -17,6 +18,13 @@ import com.Messenger.Entity.MessengerUsersEntity;
 public class CommonUtils {
 
 	private static final Logger log = LoggerFactory.getLogger(CommonUtils.class);
+
+	public static void ValidateUserWithToken(String username) {
+		String tokenUser = SecurityContextHolder.getContext().getAuthentication().getName();
+		if (!tokenUser.equals(username)) {
+			throw new AppException("Access denied: Token does not match requested user.", HttpStatus.FORBIDDEN);
+		}
+	}
 
 	public static String normalizeUsername(String username) {
 		if (username == null || username.trim().isEmpty()) {

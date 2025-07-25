@@ -1,11 +1,13 @@
 package com.Messenger.service;
 
+import java.security.Principal;
 import java.util.HashMap;
 
 import org.springframework.stereotype.Component;
 
 import com.Messenger.Dto.ChatHistoryDTO;
 import com.Messenger.Dto.SendMessageDTO;
+import com.Messenger.Dto.StatusUpdateDTO;
 import com.Messenger.Dto.UsernameDTO;
 
 import jakarta.validation.Valid;
@@ -28,5 +30,7 @@ public interface MessengerService {
 	HashMap<String, Object> updateStatusToDelivered(@Valid UsernameDTO usernameDTO);
 
 	HashMap<String, Object> updateStatusToSeen(@Valid ChatHistoryDTO usernamesDTO);
+
+	void handleStatusUpdate(StatusUpdateDTO payload, Principal principal);
 
 }

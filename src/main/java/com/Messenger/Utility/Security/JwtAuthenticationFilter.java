@@ -43,12 +43,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 				UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
 				if (!userDetails.getUsername().equals(username)) {
-					sendErrorResponse(response, "Unauthorized: Token username mismatch.", HttpServletResponse.SC_UNAUTHORIZED);
+					sendErrorResponse(response, "Unauthorized: Token username mismatch.",
+							HttpServletResponse.SC_UNAUTHORIZED);
 					return;
 				}
 
-				UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-						userDetails, null, userDetails.getAuthorities());
+				UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(userDetails, null,
+						userDetails.getAuthorities());
 
 				SecurityContextHolder.getContext().setAuthentication(auth);
 

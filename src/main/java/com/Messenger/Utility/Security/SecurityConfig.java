@@ -34,7 +34,7 @@ public class SecurityConfig {
 				.formLogin(form -> form.disable()).httpBasic(basic -> basic.disable())
 				.authorizeHttpRequests(auth -> auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 						.requestMatchers("/messenger/ping", "/messenger/exists", "/messenger/join", "/ws/**",
-								"/ws/websocket/**")
+								"/ws/websocket/**", "/websocket/**")
 						.permitAll().anyRequest().authenticated())
 				.exceptionHandling(e -> e.authenticationEntryPoint(new CustomAuthenticationEntryPoint())
 						.accessDeniedHandler(new CustomAccessDeniedHandler()))

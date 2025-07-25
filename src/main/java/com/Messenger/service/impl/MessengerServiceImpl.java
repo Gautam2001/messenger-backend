@@ -1,6 +1,8 @@
 package com.Messenger.service.impl;
 
+import java.security.Principal;
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -14,13 +16,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import com.Messenger.Dao.MessageDao;
 import com.Messenger.Dao.MessengerUsersDao;
 import com.Messenger.Dto.ChatHistoryDTO;
 import com.Messenger.Dto.SendMessageDTO;
+import com.Messenger.Dto.StatusUpdateDTO;
 import com.Messenger.Dto.UserContactDTO;
 import com.Messenger.Dto.UsernameDTO;
 import com.Messenger.Entity.MessageEntity;
@@ -90,12 +92,8 @@ public class MessengerServiceImpl implements MessengerService {
 	@Override
 	public HashMap<String, Object> sendMessage(@Valid SendMessageDTO sendMessageDTO) {
 		String senderUsername = CommonUtils.normalizeUsername(sendMessageDTO.getSender());
-		String tokenUser = SecurityContextHolder.getContext().getAuthentication().getName();
+		CommonUtils.ValidateUserWithToken(senderUsername);
 
-	    if (!tokenUser.equals(senderUsername)) {
-	        throw new AppException("Access denied: Token does not match requested user.", HttpStatus.FORBIDDEN);
-	    }
-		
 		String receiverUsername = CommonUtils.normalizeUsername(sendMessageDTO.getReceiver());
 		CommonUtils.logMethodEntry(this, "Send Message Request from: " + senderUsername + " to: " + receiverUsername);
 
@@ -120,6 +118,7 @@ public class MessengerServiceImpl implements MessengerService {
 		messagePayload.put("messageId", savedMessage.getMessageId().toString());
 		messagePayload.put("content", savedMessage.getContent());
 		messagePayload.put("sentAt", savedMessage.getSentAt().toString());
+		messagePayload.put("status", savedMessage.getStatus().toString());
 
 		String receiverTopic = "/topic/messages/" + receiver.getUserId();
 		String senderTopic = "/topic/messages/" + sender.getUserId();
@@ -137,12 +136,8 @@ public class MessengerServiceImpl implements MessengerService {
 	@Override
 	public HashMap<String, Object> getChatHistory(@Valid ChatHistoryDTO chatHistoryDTO) {
 		String username = CommonUtils.normalizeUsername(chatHistoryDTO.getUsername());
-		String tokenUser = SecurityContextHolder.getContext().getAuthentication().getName();
+		CommonUtils.ValidateUserWithToken(username);
 
-	    if (!tokenUser.equals(username)) {
-	        throw new AppException("Access denied: Token does not match requested user.", HttpStatus.FORBIDDEN);
-	    }
-	    
 		String contactUsername = CommonUtils.normalizeUsername(chatHistoryDTO.getContactUsername());
 		CommonUtils.logMethodEntry(this, "Get chat history between: " + username + " and " + contactUsername);
 
@@ -168,12 +163,8 @@ public class MessengerServiceImpl implements MessengerService {
 	@Override
 	public HashMap<String, Object> getContactList(@Valid UsernameDTO usernameDTO) {
 		String username = CommonUtils.normalizeUsername(usernameDTO.getUsername());
-		String tokenUser = SecurityContextHolder.getContext().getAuthentication().getName();
+		CommonUtils.ValidateUserWithToken(username);
 
-	    if (!tokenUser.equals(username)) {
-	        throw new AppException("Access denied: Token does not match requested user.", HttpStatus.FORBIDDEN);
-	    }
-	    
 		CommonUtils.logMethodEntry(this, "Get Contact List Request for: " + username);
 		CommonUtils.fetchUserIfExists(messengerUsersDao, username, "User does not exist, signup first.");
 
@@ -186,24 +177,23 @@ public class MessengerServiceImpl implements MessengerService {
 		Map<String, String> usernameToName = users.stream()
 				.collect(Collectors.toMap(MessengerUsersEntity::getUsername, MessengerUsersEntity::getName));
 
-		List<Object[]> unreadCountsRaw = messageDao.findUnseenCountsBySender(username);
+		List<Object[]> unseenBySenderRaw = messageDao.findUnseenCountsByReceiver(username);
 		Map<String, Long> senderToUnread = new HashMap<>();
-
-		for (Object[] row : unreadCountsRaw) {
+		for (Object[] row : unseenBySenderRaw) {
 			String sender = (String) row[0];
 			Long count = (Long) row[1];
 			senderToUnread.put(sender, count);
 		}
 
 		List<UserContactDTO> contactList = new ArrayList<>();
-
 		for (MessageEntity message : messages) {
 			String contactUsername = message.getSender().equals(username) ? message.getReceiver() : message.getSender();
 			String name = usernameToName.getOrDefault(contactUsername, contactUsername);
-			long unread = senderToUnread.getOrDefault(contactUsername, 0L); // If user is the receiver
 
-			UserContactDTO contactDTO = new UserContactDTO(name, contactUsername, message.getContent(), message.getSender(),
-					message.getSentAt(), message.getStatus(), unread);
+			long unread = senderToUnread.getOrDefault(contactUsername, 0L);
+
+			UserContactDTO contactDTO = new UserContactDTO(name, contactUsername, message.getContent(),
+					message.getSender(), message.getSentAt(), message.getStatus(), unread);
 
 			contactList.add(contactDTO);
 		}
@@ -217,12 +207,8 @@ public class MessengerServiceImpl implements MessengerService {
 
 	public HashMap<String, Object> getUserForSearch(@Valid ChatHistoryDTO searchDTO) {
 		String username = CommonUtils.normalizeUsername(searchDTO.getUsername());
-		String tokenUser = SecurityContextHolder.getContext().getAuthentication().getName();
+		CommonUtils.ValidateUserWithToken(username);
 
-	    if (!tokenUser.equals(username)) {
-	        throw new AppException("Access denied: Token does not match requested user.", HttpStatus.FORBIDDEN);
-	    }
-	    
 		String searchTerm = CommonUtils.normalizeUsername(searchDTO.getContactUsername());
 
 		CommonUtils.logMethodEntry(this, "Global user search for: " + searchTerm);
@@ -248,12 +234,8 @@ public class MessengerServiceImpl implements MessengerService {
 	@Override
 	public HashMap<String, Object> updateStatusToDelivered(@Valid UsernameDTO usernameDTO) {
 		String username = CommonUtils.normalizeUsername(usernameDTO.getUsername());
-		String tokenUser = SecurityContextHolder.getContext().getAuthentication().getName();
+		CommonUtils.ValidateUserWithToken(username);
 
-	    if (!tokenUser.equals(username)) {
-	        throw new AppException("Access denied: Token does not match requested user.", HttpStatus.FORBIDDEN);
-	    }
-	    
 		CommonUtils.logMethodEntry(this, "Update message status to delivered on login for user: " + username);
 		CommonUtils.fetchUserIfExists(messengerUsersDao, username, "User does not exist, signup first.");
 
@@ -270,12 +252,8 @@ public class MessengerServiceImpl implements MessengerService {
 	@Override
 	public HashMap<String, Object> updateStatusToSeen(@Valid ChatHistoryDTO usernamesDTO) {
 		String accountHolder = CommonUtils.normalizeUsername(usernamesDTO.getUsername());
-		String tokenUser = SecurityContextHolder.getContext().getAuthentication().getName();
+		CommonUtils.ValidateUserWithToken(accountHolder);
 
-	    if (!tokenUser.equals(accountHolder)) {
-	        throw new AppException("Access denied: Token does not match requested user.", HttpStatus.FORBIDDEN);
-	    }
-	    
 		String contactUsername = CommonUtils.normalizeUsername(usernamesDTO.getContactUsername());
 		CommonUtils.logMethodEntry(this,
 				"Update message status to seen between: " + accountHolder + " and " + contactUsername);
@@ -292,6 +270,37 @@ public class MessengerServiceImpl implements MessengerService {
 		} else {
 			return CommonUtils.prepareResponse(response, "No messages needed updating.", true);
 		}
+	}
+
+	@Override
+	public void handleStatusUpdate(StatusUpdateDTO payload, Principal principal) {
+		CommonUtils.logMethodEntry(this, "Handling WebSocket status update");
+		String requestUsername = CommonUtils.normalizeUsername(payload.getUsername());
+		CommonUtils.ValidateUserWithToken(requestUsername);
+
+		CommonUtils.fetchUserIfExists(messengerUsersDao, requestUsername, "User does not exist, signup first.");
+
+		int totalSeenUpdated = 0;
+		int totalDeliveredUpdated = 0;
+
+		Instant payloadTimestamp;
+		try {
+			payloadTimestamp = Instant.parse(payload.getTimestamp());
+		} catch (DateTimeParseException e) {
+			payloadTimestamp = Instant.now(); // as a fallback (anyways difference will be seconds)
+		}
+
+		if (payload.getDelivered() != null && !payload.getDelivered().isEmpty()) {
+			totalDeliveredUpdated = messageDao.updateDeliveredStatusesByIds(payload.getDelivered(), Status.DELIVERED,
+					payloadTimestamp);
+		}
+
+		if (payload.getSeen() != null && !payload.getSeen().isEmpty()) {
+			totalSeenUpdated = messageDao.updateSeenStatusesByIds(payload.getSeen(), Status.SEEN, payloadTimestamp);
+		}
+
+		CommonUtils.logMethodEntry(this,
+				"Delivered updated: " + totalDeliveredUpdated + ", Seen updated: " + totalSeenUpdated);
 	}
 
 }
