@@ -16,7 +16,4 @@ public class StatusUpdateDTO {
 	private List<Long> delivered;
 
 	private List<Long> seen;
-
-	@NotBlank(message = "Timestamp is required")
-	private String timestamp;
 }

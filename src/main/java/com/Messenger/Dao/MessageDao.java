@@ -2,6 +2,7 @@ package com.Messenger.Dao;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -43,13 +44,16 @@ public interface MessageDao extends JpaRepository<MessageEntity, Long> {
 	@Modifying
 	@Transactional
 	@Query("UPDATE MessageEntity m SET m.status = :status, m.deliveredAt = :updatedAt WHERE m.messageId IN :ids")
-	int updateDeliveredStatusesByIds(@Param("ids") List<Long> ids, @Param("status") MessageEntity.Status status,
+	int updateDeliveredStatusesByIds(@Param("ids") Set<Long> delivered, @Param("status") MessageEntity.Status status,
 			@Param("updatedAt") Instant updatedAt);
 
 	@Modifying
 	@Transactional
 	@Query("UPDATE MessageEntity m SET m.status = :status, m.seenAt = :updatedAt WHERE m.messageId IN :ids")
-	int updateSeenStatusesByIds(@Param("ids") List<Long> ids, @Param("status") MessageEntity.Status status,
+	int updateSeenStatusesByIds(@Param("ids") Set<Long> seen, @Param("status") MessageEntity.Status status,
 			@Param("updatedAt") Instant updatedAt);
+
+	@Query("SELECT m.id, m.sender FROM MessageEntity m WHERE m.id IN :ids")
+	List<Object[]> findMessageIdAndSenderByIds(@Param("ids") Set<Long> ids);
 
 }

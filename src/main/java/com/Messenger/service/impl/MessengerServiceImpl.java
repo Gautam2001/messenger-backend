@@ -2,10 +2,10 @@ package com.Messenger.service.impl;
 
 import java.security.Principal;
 import java.time.Instant;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -22,6 +22,7 @@ import com.Messenger.Dao.MessageDao;
 import com.Messenger.Dao.MessengerUsersDao;
 import com.Messenger.Dto.ChatHistoryDTO;
 import com.Messenger.Dto.SendMessageDTO;
+import com.Messenger.Dto.StatusUpdateAckDTO;
 import com.Messenger.Dto.StatusUpdateDTO;
 import com.Messenger.Dto.UserContactDTO;
 import com.Messenger.Dto.UsernameDTO;
@@ -111,21 +112,12 @@ public class MessengerServiceImpl implements MessengerService {
 
 		CommonUtils.logMethodEntry(this, "Message saved to Database.");
 
-		Map<String, String> messagePayload = new HashMap<>();
-		messagePayload.put("sender", senderUsername);
-		messagePayload.put("senderName", sender.getName());
-		messagePayload.put("receiver", receiverUsername);
-		messagePayload.put("messageId", savedMessage.getMessageId().toString());
-		messagePayload.put("content", savedMessage.getContent());
-		messagePayload.put("sentAt", savedMessage.getSentAt().toString());
-		messagePayload.put("status", savedMessage.getStatus().toString());
-
 		String receiverTopic = "/topic/messages/" + receiver.getUserId();
 		String senderTopic = "/topic/messages/" + sender.getUserId();
 		CommonUtils.logMethodEntry(this, "Sending to WebSocket topic: " + receiverTopic + " and " + senderTopic);
 
-		messagingTemplate.convertAndSend(receiverTopic, messagePayload);
-		messagingTemplate.convertAndSend(senderTopic, messagePayload);
+		messagingTemplate.convertAndSend(receiverTopic, savedMessage);
+		messagingTemplate.convertAndSend(senderTopic, savedMessage);
 
 		HashMap<String, Object> response = new HashMap<>();
 		response.put("messageId", savedMessage.getMessageId());
@@ -166,7 +158,8 @@ public class MessengerServiceImpl implements MessengerService {
 		CommonUtils.ValidateUserWithToken(username);
 
 		CommonUtils.logMethodEntry(this, "Get Contact List Request for: " + username);
-		CommonUtils.fetchUserIfExists(messengerUsersDao, username, "User does not exist, signup first.");
+		MessengerUsersEntity user = CommonUtils.fetchUserIfExists(messengerUsersDao, username,
+				"User does not exist, signup first.");
 
 		List<MessageEntity> messages = messageDao.findLatestMessagesPerConversation(username);
 
@@ -192,13 +185,21 @@ public class MessengerServiceImpl implements MessengerService {
 
 			long unread = senderToUnread.getOrDefault(contactUsername, 0L);
 
-			UserContactDTO contactDTO = new UserContactDTO(name, contactUsername, message.getContent(),
-					message.getSender(), message.getSentAt(), message.getStatus(), unread);
+			UserContactDTO contactDTO = new UserContactDTO(name, contactUsername, message.getMessageId(),
+					message.getContent(), message.getSender(), message.getSentAt(), message.getStatus(), unread);
 
 			contactList.add(contactDTO);
 		}
-
 		contactList.sort((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()));
+		
+		boolean hasSelfContact = contactList.stream().anyMatch(c -> c.getContactUsername().equals(username));
+
+		if (!hasSelfContact) {
+			UserContactDTO selfContact = new UserContactDTO(user.getName(), user.getUsername(), null,
+					"No conversations yet.", username, null, Status.SENT, 0L);
+
+			contactList.add(selfContact);
+		}
 
 		HashMap<String, Object> response = new HashMap<>();
 		response.put("contactList", contactList);
@@ -275,32 +276,62 @@ public class MessengerServiceImpl implements MessengerService {
 	@Override
 	public void handleStatusUpdate(StatusUpdateDTO payload, Principal principal) {
 		CommonUtils.logMethodEntry(this, "Handling WebSocket status update");
+
 		String requestUsername = CommonUtils.normalizeUsername(payload.getUsername());
-		CommonUtils.ValidateUserWithToken(requestUsername);
-
-		CommonUtils.fetchUserIfExists(messengerUsersDao, requestUsername, "User does not exist, signup first.");
-
-		int totalSeenUpdated = 0;
-		int totalDeliveredUpdated = 0;
-
-		Instant payloadTimestamp;
-		try {
-			payloadTimestamp = Instant.parse(payload.getTimestamp());
-		} catch (DateTimeParseException e) {
-			payloadTimestamp = Instant.now(); // as a fallback (anyways difference will be seconds)
+		String tokenUser = principal.getName();
+		if (!tokenUser.equals(payload.getUsername())) {
+			throw new AppException("Access denied: Token does not match requested user.", HttpStatus.FORBIDDEN);
 		}
 
-		if (payload.getDelivered() != null && !payload.getDelivered().isEmpty()) {
-			totalDeliveredUpdated = messageDao.updateDeliveredStatusesByIds(payload.getDelivered(), Status.DELIVERED,
-					payloadTimestamp);
+		MessengerUsersEntity receiver = CommonUtils.fetchUserIfExists(messengerUsersDao, requestUsername,
+				"User does not exist, signup first.");
+
+		Set<Long> delivered = payload.getDelivered() != null ? new HashSet<>(payload.getDelivered()) : Set.of();
+		Set<Long> seen = payload.getSeen() != null ? new HashSet<>(payload.getSeen()) : Set.of();
+		Set<Long> allIds = new HashSet<>();
+		allIds.addAll(delivered);
+		allIds.addAll(seen);
+
+		Instant now = Instant.now();
+
+		if (!delivered.isEmpty()) {
+			messageDao.updateDeliveredStatusesByIds(delivered, Status.DELIVERED, now);
+		}
+		if (!seen.isEmpty()) {
+			messageDao.updateSeenStatusesByIds(seen, Status.SEEN, now);
 		}
 
-		if (payload.getSeen() != null && !payload.getSeen().isEmpty()) {
-			totalSeenUpdated = messageDao.updateSeenStatusesByIds(payload.getSeen(), Status.SEEN, payloadTimestamp);
+		CommonUtils.logMethodEntry(this, "Database Updated.");
+
+		List<Object[]> results = messageDao.findMessageIdAndSenderByIds(allIds);
+
+		Map<String, StatusUpdateAckDTO> ackMap = new HashMap<>();
+		for (Object[] row : results) {
+			Long id = (Long) row[0];
+			String senderUsername = (String) row[1];
+
+			ackMap.computeIfAbsent(senderUsername, k -> new StatusUpdateAckDTO());
+
+			if (delivered.contains(id))
+				ackMap.get(senderUsername).addDelivered(id);
+			if (seen.contains(id))
+				ackMap.get(senderUsername).addSeen(id);
 		}
 
-		CommonUtils.logMethodEntry(this,
-				"Delivered updated: " + totalDeliveredUpdated + ", Seen updated: " + totalSeenUpdated);
+		Set<String> senderUsernames = ackMap.keySet();
+		List<MessengerUsersEntity> senders = messengerUsersDao.findAllByUsernameIn(senderUsernames);
+		Map<String, Long> usernameToId = senders.stream()
+				.collect(Collectors.toMap(MessengerUsersEntity::getUsername, MessengerUsersEntity::getUserId));
+
+		for (Map.Entry<String, StatusUpdateAckDTO> entry : ackMap.entrySet()) {
+			Long senderId = usernameToId.get(entry.getKey());
+			if (senderId != null) {
+				String topic = "/topic/messages/" + senderId;
+				CommonUtils.logMethodEntry(this,
+						"Sending message via websocket to: " + senderId + " with data: " + entry.getValue());
+				messagingTemplate.convertAndSend(topic, entry.getValue());
+			}
+		}
 	}
 
 }

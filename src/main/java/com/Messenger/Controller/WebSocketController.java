@@ -11,7 +11,6 @@ import com.Messenger.Utility.CommonUtils;
 import com.Messenger.service.MessengerService;
 
 @Controller
-@MessageMapping("/webSocket")
 public class WebSocketController {
 
 	@Autowired

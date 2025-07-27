@@ -6,6 +6,7 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -57,6 +58,13 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<Map<String, Object>> handleAll(Exception ex) {
 		CommonUtils.logError(ex);
 		return CommonUtils.buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong", null);
+	}
+
+	// Catch-all exceptions related to webSocket
+	@MessageExceptionHandler
+	public void handleException(Throwable exception) {
+		System.err.println("WebSocket exception: " + exception.getMessage());
+		exception.printStackTrace();
 	}
 
 }
