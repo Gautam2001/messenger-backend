@@ -56,12 +56,15 @@ public class MessengerServiceImpl implements MessengerService {
 		String username = CommonUtils.normalizeUsername(usernameDTO.getUsername());
 		CommonUtils.logMethodEntry(this, "User Exists Check Request for: " + username);
 		HashMap<String, Object> response = new HashMap<>();
-
-		MessengerUsersEntity user = CommonUtils.fetchUserIfExists(messengerUsersDao, username,
-				"User does not exist. Join Messenger.");
-
-		response.put("userId", user.getUserId());
-		return CommonUtils.prepareResponse(response, "User exists in Messenger.", true);
+		
+		Optional<MessengerUsersEntity> userOpt = messengerUsersDao.getUserByUsername(username);
+		if (userOpt.isPresent()) {
+			MessengerUsersEntity user = userOpt.get();
+			response.put("userId", user.getUserId());
+			return CommonUtils.prepareResponse(response, "User exists in Messenger.", true);
+		} else {
+			return CommonUtils.prepareResponse(response, "User does not exists in Messenger.", false);
+		}
 	}
 
 	@Override
@@ -283,7 +286,7 @@ public class MessengerServiceImpl implements MessengerService {
 			throw new AppException("Access denied: Token does not match requested user.", HttpStatus.FORBIDDEN);
 		}
 
-		MessengerUsersEntity receiver = CommonUtils.fetchUserIfExists(messengerUsersDao, requestUsername,
+		CommonUtils.fetchUserIfExists(messengerUsersDao, requestUsername,
 				"User does not exist, signup first.");
 
 		Set<Long> delivered = payload.getDelivered() != null ? new HashSet<>(payload.getDelivered()) : Set.of();
