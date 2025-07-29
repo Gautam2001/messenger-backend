@@ -44,6 +44,9 @@ public class MessageEntity {
 
 	@Column(name = "seen_at")
 	private Instant seenAt;
+	
+	@Column(name = "is_deleted")
+	private Boolean isDeleted;
 
 	public enum Status {
 		SENT, DELIVERED, SEEN
@@ -56,5 +59,6 @@ public class MessageEntity {
 		this.content = content;
 		this.status = Status.SENT;
 		this.sentAt = Instant.now();
+		this.isDeleted = false;
 	}
 }

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.Messenger.Dto.ChatHistoryDTO;
+import com.Messenger.Dto.DeleteMessageDTO;
 import com.Messenger.Dto.SendMessageDTO;
 import com.Messenger.Dto.UsernameDTO;
 import com.Messenger.Utility.CommonUtils;
@@ -103,6 +104,15 @@ public class MessengerController {
 		CommonUtils.logMethodEntry(this);
 
 		HashMap<String, Object> response = messengerService.updateStatusToSeen(usernamesDTO);
+
+		return ResponseEntity.ok(response);
+	}
+	
+	@PostMapping("/message-delete")
+	public ResponseEntity<HashMap<String, Object>> deleteMessage(@RequestBody @Valid DeleteMessageDTO deleteMessageDTO) {
+		CommonUtils.logMethodEntry(this);
+
+		HashMap<String, Object> response = messengerService.deleteMessage(deleteMessageDTO);
 
 		return ResponseEntity.ok(response);
 	}

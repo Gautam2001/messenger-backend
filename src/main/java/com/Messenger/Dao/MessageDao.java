@@ -2,6 +2,7 @@ package com.Messenger.Dao;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.data.domain.Pageable;
@@ -16,8 +17,13 @@ import com.Messenger.Entity.MessageEntity.Status;
 import jakarta.transaction.Transactional;
 
 public interface MessageDao extends JpaRepository<MessageEntity, Long> {
-
-	@Query(value = "SELECT DISTINCT ON (LEAST(m.sender, m.receiver), GREATEST(m.sender, m.receiver)) * FROM messages m WHERE m.sender = :username OR receiver = :username ORDER BY LEAST(m.sender, m.receiver), GREATEST(m.sender, m.receiver), m.sent_at DESC", nativeQuery = true)
+	@Query(value = """
+			SELECT DISTINCT ON (LEAST(m.sender, m.receiver), GREATEST(m.sender, m.receiver)) *
+			FROM messages m
+			WHERE (m.sender = :username OR m.receiver = :username)
+			  AND (m.is_deleted IS NULL OR m.is_deleted = false)
+			ORDER BY LEAST(m.sender, m.receiver), GREATEST(m.sender, m.receiver), m.sent_at DESC
+			""", nativeQuery = true)
 	List<MessageEntity> findLatestMessagesPerConversation(@Param("username") String username);
 
 	@Query("SELECT m FROM MessageEntity m WHERE ((m.sender = :username AND m.receiver = :contactUsername) "
@@ -55,5 +61,7 @@ public interface MessageDao extends JpaRepository<MessageEntity, Long> {
 
 	@Query("SELECT m.id, m.sender FROM MessageEntity m WHERE m.id IN :ids")
 	List<Object[]> findMessageIdAndSenderByIds(@Param("ids") Set<Long> ids);
+
+	Optional<MessageEntity> getByMessageIdAndSender(Long messageId, String username);
 
 }

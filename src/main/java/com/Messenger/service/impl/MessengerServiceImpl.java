@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import com.Messenger.Dao.MessageDao;
 import com.Messenger.Dao.MessengerUsersDao;
 import com.Messenger.Dto.ChatHistoryDTO;
+import com.Messenger.Dto.DeleteMessageDTO;
 import com.Messenger.Dto.SendMessageDTO;
 import com.Messenger.Dto.StatusUpdateAckDTO;
 import com.Messenger.Dto.StatusUpdateDTO;
@@ -56,7 +57,7 @@ public class MessengerServiceImpl implements MessengerService {
 		String username = CommonUtils.normalizeUsername(usernameDTO.getUsername());
 		CommonUtils.logMethodEntry(this, "User Exists Check Request for: " + username);
 		HashMap<String, Object> response = new HashMap<>();
-		
+
 		Optional<MessengerUsersEntity> userOpt = messengerUsersDao.getUserByUsername(username);
 		if (userOpt.isPresent()) {
 			MessengerUsersEntity user = userOpt.get();
@@ -194,7 +195,7 @@ public class MessengerServiceImpl implements MessengerService {
 			contactList.add(contactDTO);
 		}
 		contactList.sort((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()));
-		
+
 		boolean hasSelfContact = contactList.stream().anyMatch(c -> c.getContactUsername().equals(username));
 
 		if (!hasSelfContact) {
@@ -286,8 +287,7 @@ public class MessengerServiceImpl implements MessengerService {
 			throw new AppException("Access denied: Token does not match requested user.", HttpStatus.FORBIDDEN);
 		}
 
-		CommonUtils.fetchUserIfExists(messengerUsersDao, requestUsername,
-				"User does not exist, signup first.");
+		CommonUtils.fetchUserIfExists(messengerUsersDao, requestUsername, "User does not exist, signup first.");
 
 		Set<Long> delivered = payload.getDelivered() != null ? new HashSet<>(payload.getDelivered()) : Set.of();
 		Set<Long> seen = payload.getSeen() != null ? new HashSet<>(payload.getSeen()) : Set.of();
@@ -335,6 +335,40 @@ public class MessengerServiceImpl implements MessengerService {
 				messagingTemplate.convertAndSend(topic, entry.getValue());
 			}
 		}
+	}
+
+	@Override
+	public HashMap<String, Object> deleteMessage(@Valid DeleteMessageDTO deleteMessageDTO) {
+		String username = CommonUtils.normalizeUsername(deleteMessageDTO.getUsername());
+		CommonUtils.ValidateUserWithToken(username);
+		CommonUtils.logMethodEntry(this, "Delete message from: " + username);
+		MessengerUsersEntity sender = CommonUtils.fetchUserIfExists(messengerUsersDao, username, "User does not exist, signup first.");
+
+		MessageEntity message = messageDao.getByMessageIdAndSender(deleteMessageDTO.getMessageId(), username)
+				.orElseThrow(() -> new AppException("Cannot Locate the message.", HttpStatus.BAD_REQUEST));
+
+		message.setIsDeleted(true);
+		messageDao.save(message);
+		
+		CommonUtils.logMethodEntry(this, "Message: isDeleted updated in Database.");
+		
+		MessengerUsersEntity receiver = CommonUtils.fetchUserIfExists(messengerUsersDao, message.getReceiver(), "No receiver present for the message.");
+
+		Map<String, Object> broadcastMessage = new HashMap<>();
+		broadcastMessage.put("messageId", message.getMessageId());
+		broadcastMessage.put("type", "DELETED");
+		broadcastMessage.put("sender", message.getSender());
+		broadcastMessage.put("receiver", message.getReceiver());		
+		
+		String receiverTopic = "/topic/messages/" + receiver.getUserId();
+		String senderTopic = "/topic/messages/" + sender.getUserId();
+		CommonUtils.logMethodEntry(this, "Sending to WebSocket topic: " + receiverTopic + " and " + senderTopic);
+
+		messagingTemplate.convertAndSend(receiverTopic, broadcastMessage);
+		messagingTemplate.convertAndSend(senderTopic, broadcastMessage);
+
+		HashMap<String, Object> response = new HashMap<>();
+		return CommonUtils.prepareResponse(response, "Message deleted successfully", true);
 	}
 
 }
