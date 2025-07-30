@@ -47,6 +47,9 @@ public class MessageEntity {
 	
 	@Column(name = "is_deleted")
 	private Boolean isDeleted;
+	
+	@Column(name = "is_edited")
+	private Boolean isEdited;
 
 	public enum Status {
 		SENT, DELIVERED, SEEN
@@ -60,5 +63,6 @@ public class MessageEntity {
 		this.status = Status.SENT;
 		this.sentAt = Instant.now();
 		this.isDeleted = false;
+		this.isEdited = false;
 	}
 }

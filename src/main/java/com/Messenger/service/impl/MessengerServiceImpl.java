@@ -22,6 +22,7 @@ import com.Messenger.Dao.MessageDao;
 import com.Messenger.Dao.MessengerUsersDao;
 import com.Messenger.Dto.ChatHistoryDTO;
 import com.Messenger.Dto.DeleteMessageDTO;
+import com.Messenger.Dto.EditMessageDTO;
 import com.Messenger.Dto.SendMessageDTO;
 import com.Messenger.Dto.StatusUpdateAckDTO;
 import com.Messenger.Dto.StatusUpdateDTO;
@@ -35,6 +36,7 @@ import com.Messenger.Utility.CallLoginService;
 import com.Messenger.Utility.CommonUtils;
 import com.Messenger.service.MessengerService;
 
+import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 
 @Service
@@ -338,28 +340,31 @@ public class MessengerServiceImpl implements MessengerService {
 	}
 
 	@Override
+	@Transactional
 	public HashMap<String, Object> deleteMessage(@Valid DeleteMessageDTO deleteMessageDTO) {
 		String username = CommonUtils.normalizeUsername(deleteMessageDTO.getUsername());
 		CommonUtils.ValidateUserWithToken(username);
 		CommonUtils.logMethodEntry(this, "Delete message from: " + username);
-		MessengerUsersEntity sender = CommonUtils.fetchUserIfExists(messengerUsersDao, username, "User does not exist, signup first.");
+		MessengerUsersEntity sender = CommonUtils.fetchUserIfExists(messengerUsersDao, username,
+				"User does not exist, signup first.");
 
 		MessageEntity message = messageDao.getByMessageIdAndSender(deleteMessageDTO.getMessageId(), username)
 				.orElseThrow(() -> new AppException("Cannot Locate the message.", HttpStatus.BAD_REQUEST));
 
 		message.setIsDeleted(true);
 		messageDao.save(message);
-		
+
 		CommonUtils.logMethodEntry(this, "Message: isDeleted updated in Database.");
-		
-		MessengerUsersEntity receiver = CommonUtils.fetchUserIfExists(messengerUsersDao, message.getReceiver(), "No receiver present for the message.");
+
+		MessengerUsersEntity receiver = CommonUtils.fetchUserIfExists(messengerUsersDao, message.getReceiver(),
+				"No receiver present for the message.");
 
 		Map<String, Object> broadcastMessage = new HashMap<>();
 		broadcastMessage.put("messageId", message.getMessageId());
 		broadcastMessage.put("type", "DELETED");
 		broadcastMessage.put("sender", message.getSender());
-		broadcastMessage.put("receiver", message.getReceiver());		
-		
+		broadcastMessage.put("receiver", message.getReceiver());
+
 		String receiverTopic = "/topic/messages/" + receiver.getUserId();
 		String senderTopic = "/topic/messages/" + sender.getUserId();
 		CommonUtils.logMethodEntry(this, "Sending to WebSocket topic: " + receiverTopic + " and " + senderTopic);
@@ -369,6 +374,61 @@ public class MessengerServiceImpl implements MessengerService {
 
 		HashMap<String, Object> response = new HashMap<>();
 		return CommonUtils.prepareResponse(response, "Message deleted successfully", true);
+	}
+
+	@Override
+	@Transactional
+	public HashMap<String, Object> editMessage(@Valid EditMessageDTO dto) {
+		String username = CommonUtils.normalizeUsername(dto.getUsername());
+		CommonUtils.ValidateUserWithToken(username);
+		CommonUtils.logMethodEntry(this, "Edit message from: " + username);
+
+		MessengerUsersEntity sender = CommonUtils.fetchUserIfExists(messengerUsersDao, username,
+				"User does not exist, signup first.");
+
+		MessageEntity message = messageDao.getByMessageIdAndSender(dto.getMessageId(), username)
+				.orElseThrow(() -> new AppException("Cannot locate the message.", HttpStatus.BAD_REQUEST));
+
+		if (Boolean.TRUE.equals(message.getIsDeleted())) {
+			throw new AppException("Cannot edit a deleted message.", HttpStatus.BAD_REQUEST);
+		}
+
+		String newContent = dto.getContent() == null ? "" : dto.getContent().trim();
+		if (newContent.isEmpty()) {
+			throw new AppException("Message content cannot be blank.", HttpStatus.BAD_REQUEST);
+		}
+		if (newContent.length() > 4000) {
+			throw new AppException("Message is too long.", HttpStatus.BAD_REQUEST);
+		}
+		if (newContent.equals(message.getContent())) {
+			return CommonUtils.prepareResponse(new HashMap<>(), "No changes to apply.", true);
+		}
+
+		message.setIsEdited(true);
+		message.setContent(newContent);
+		messageDao.save(message);
+
+		CommonUtils.logMethodEntry(this, "Message: isEdited and Content updated in Database.");
+
+		MessengerUsersEntity receiver = CommonUtils.fetchUserIfExists(messengerUsersDao, message.getReceiver(),
+				"No receiver present for the message.");
+
+		Map<String, Object> broadcastMessage = new HashMap<>();
+		broadcastMessage.put("messageId", message.getMessageId());
+		broadcastMessage.put("type", "EDITED");
+		broadcastMessage.put("sender", message.getSender());
+		broadcastMessage.put("receiver", message.getReceiver());
+		broadcastMessage.put("content", message.getContent());
+		broadcastMessage.put("isEdited", message.getIsEdited());
+
+		String receiverTopic = "/topic/messages/" + receiver.getUserId();
+		String senderTopic = "/topic/messages/" + sender.getUserId();
+		CommonUtils.logMethodEntry(this, "Will send to WebSocket topic: " + receiverTopic + " and " + senderTopic);
+
+		messagingTemplate.convertAndSend(receiverTopic, broadcastMessage);
+		messagingTemplate.convertAndSend(senderTopic, broadcastMessage);
+
+		return CommonUtils.prepareResponse(new HashMap<>(), "Message edited successfully", true);
 	}
 
 }

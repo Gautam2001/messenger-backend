@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import com.Messenger.Dto.ChatHistoryDTO;
 import com.Messenger.Dto.DeleteMessageDTO;
+import com.Messenger.Dto.EditMessageDTO;
 import com.Messenger.Dto.SendMessageDTO;
 import com.Messenger.Dto.StatusUpdateDTO;
 import com.Messenger.Dto.UsernameDTO;
@@ -35,5 +36,7 @@ public interface MessengerService {
 	void handleStatusUpdate(StatusUpdateDTO payload, Principal principal);
 
 	HashMap<String, Object> deleteMessage(@Valid DeleteMessageDTO deleteMessageDTO);
+
+	HashMap<String, Object> editMessage(@Valid EditMessageDTO editMessageDTO);
 
 }

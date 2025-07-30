@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.Messenger.Dto.ChatHistoryDTO;
 import com.Messenger.Dto.DeleteMessageDTO;
+import com.Messenger.Dto.EditMessageDTO;
 import com.Messenger.Dto.SendMessageDTO;
 import com.Messenger.Dto.UsernameDTO;
 import com.Messenger.Utility.CommonUtils;
@@ -113,6 +114,15 @@ public class MessengerController {
 		CommonUtils.logMethodEntry(this);
 
 		HashMap<String, Object> response = messengerService.deleteMessage(deleteMessageDTO);
+
+		return ResponseEntity.ok(response);
+	}
+	
+	@PostMapping("/message-edit")
+	public ResponseEntity<HashMap<String, Object>> editMessage(@RequestBody @Valid EditMessageDTO editMessageDTO) {
+		CommonUtils.logMethodEntry(this);
+
+		HashMap<String, Object> response = messengerService.editMessage(editMessageDTO);
 
 		return ResponseEntity.ok(response);
 	}
