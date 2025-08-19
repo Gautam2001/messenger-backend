@@ -64,6 +64,7 @@ public class MessengerServiceImpl implements MessengerService {
 		if (userOpt.isPresent()) {
 			MessengerUsersEntity user = userOpt.get();
 			response.put("userId", user.getUserId());
+			response.put("joinedAt", user.getJoinedAt());
 			return CommonUtils.prepareResponse(response, "User exists in Messenger.", true);
 		} else {
 			return CommonUtils.prepareResponse(response, "User does not exists in Messenger.", false);
