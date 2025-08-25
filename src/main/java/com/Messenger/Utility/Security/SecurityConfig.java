@@ -48,9 +48,11 @@ public class SecurityConfig {
 		CommonUtils.logMethodEntry(this);
 		CorsConfiguration configuration = new CorsConfiguration();
 
-		// Allows any origin pattern, e.g. http://localhost:5173 or
-		// http://127.0.0.1:8080
-		configuration.setAllowedOriginPatterns(List.of("*"));
+		configuration.setAllowedOrigins(List.of(
+		        "http://localhost:5173",
+		        "http://localhost:4173",
+		        "https://messenger-chats.vercel.app"
+		    ));
 
 		configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "OPTIONS"));
 		configuration.addAllowedHeader("*");
