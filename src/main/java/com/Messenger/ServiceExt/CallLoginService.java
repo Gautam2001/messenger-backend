@@ -1,4 +1,4 @@
-package com.Messenger.Utility;
+package com.Messenger.ServiceExt;
 
 import java.util.Map;
 import java.util.Optional;
@@ -15,6 +15,8 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import com.Messenger.Dto.UsernameDTO;
+import com.Messenger.Utility.AppException;
+import com.Messenger.Utility.CommonUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service

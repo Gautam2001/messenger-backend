@@ -1,4 +1,4 @@
-package com.Messenger.service;
+package com.Messenger.Services;
 
 import java.security.Principal;
 import java.util.HashMap;

@@ -15,8 +15,8 @@ import com.Messenger.Dto.DeleteMessageDTO;
 import com.Messenger.Dto.EditMessageDTO;
 import com.Messenger.Dto.SendMessageDTO;
 import com.Messenger.Dto.UsernameDTO;
+import com.Messenger.Services.MessengerService;
 import com.Messenger.Utility.CommonUtils;
-import com.Messenger.service.MessengerService;
 
 import jakarta.validation.Valid;
 

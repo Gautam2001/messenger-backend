@@ -7,8 +7,8 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.stereotype.Controller;
 
 import com.Messenger.Dto.StatusUpdateDTO;
+import com.Messenger.Services.MessengerService;
 import com.Messenger.Utility.CommonUtils;
-import com.Messenger.service.MessengerService;
 
 @Controller
 public class WebSocketController {

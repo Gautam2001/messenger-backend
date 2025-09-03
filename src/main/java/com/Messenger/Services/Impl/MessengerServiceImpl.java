@@ -1,4 +1,4 @@
-package com.Messenger.service.impl;
+package com.Messenger.Services.Impl;
 
 import java.security.Principal;
 import java.time.Instant;
@@ -17,6 +17,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.Messenger.Dao.MessageDao;
 import com.Messenger.Dao.MessengerUsersDao;
@@ -30,20 +31,25 @@ import com.Messenger.Dto.UserContactDTO;
 import com.Messenger.Dto.UsernameDTO;
 import com.Messenger.Entity.MessageEntity;
 import com.Messenger.Entity.MessageEntity.Status;
+import com.Messenger.ServiceExt.CallAIBotService;
+import com.Messenger.ServiceExt.CallLoginService;
 import com.Messenger.Entity.MessengerUsersEntity;
+import com.Messenger.Services.MessengerService;
 import com.Messenger.Utility.AppException;
-import com.Messenger.Utility.CallLoginService;
 import com.Messenger.Utility.CommonUtils;
-import com.Messenger.service.MessengerService;
 
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 
 @Service
 public class MessengerServiceImpl implements MessengerService {
+	
+	public static final String BOT_USERNAME = "aibot@messenger-chats.com";
 
 	@Autowired
 	CallLoginService callLoginService;
+	
+	@Autowired
+	CallAIBotService callAIBotService;
 
 	@Autowired
 	MessengerUsersDao messengerUsersDao;
@@ -59,6 +65,10 @@ public class MessengerServiceImpl implements MessengerService {
 		String username = CommonUtils.normalizeUsername(usernameDTO.getUsername());
 		CommonUtils.logMethodEntry(this, "User Exists Check Request for: " + username);
 		HashMap<String, Object> response = new HashMap<>();
+		
+		if (username.equalsIgnoreCase(BOT_USERNAME)) {
+			return CommonUtils.prepareResponse(response, "Username reserved, Try with different username.", false);
+		}
 
 		Optional<MessengerUsersEntity> userOpt = messengerUsersDao.getUserByUsername(username);
 		if (userOpt.isPresent()) {
@@ -76,6 +86,10 @@ public class MessengerServiceImpl implements MessengerService {
 		String username = CommonUtils.normalizeUsername(usernameDTO.getUsername());
 		CommonUtils.logMethodEntry(this, "Join Messenger Request for: " + username);
 		HashMap<String, Object> response = new HashMap<>();
+		
+		if (username.equalsIgnoreCase(BOT_USERNAME)) {
+			return CommonUtils.prepareResponse(response, "Username reserved, Try with different username.", false);
+		}
 
 		Optional<String> nameOpt = callLoginService.checkUserExistsInLoginService(username);
 
@@ -98,7 +112,9 @@ public class MessengerServiceImpl implements MessengerService {
 	}
 
 	@Override
+	@Transactional(rollbackFor = Exception.class)
 	public HashMap<String, Object> sendMessage(@Valid SendMessageDTO sendMessageDTO) {
+		HashMap<String, Object> response = new HashMap<>();
 		String senderUsername = CommonUtils.normalizeUsername(sendMessageDTO.getSender());
 		CommonUtils.ValidateUserWithToken(senderUsername);
 
@@ -125,8 +141,32 @@ public class MessengerServiceImpl implements MessengerService {
 
 		messagingTemplate.convertAndSend(receiverTopic, savedMessage);
 		messagingTemplate.convertAndSend(senderTopic, savedMessage);
+		
+		//Logic for AI Bot
+		if (receiverUsername.equalsIgnoreCase(BOT_USERNAME)) {
+			//get last 6 messages
+			List<MessageEntity> lastNMessages = messageDao.getConversationBetweenUsers(senderUsername, receiverUsername,
+					null, PageRequest.of(0, 7));
+			
+			String reply = callAIBotService.getGenericBotReply(lastNMessages, savedMessage.getContent());
+			
+			MessageEntity replyMessage = new MessageEntity(receiverUsername, senderUsername, reply);
+			MessageEntity savedReply = messageDao.save(replyMessage);
+			if (savedReply == null || savedReply.getMessageId() == null) {
+				throw new AppException("Failed to save Bot Reply in Database. Please try again.",
+						HttpStatus.INTERNAL_SERVER_ERROR);
+			}
 
-		HashMap<String, Object> response = new HashMap<>();
+			CommonUtils.logMethodEntry(this, "Bot reply saved to Database.");
+			response.put("BotMessageId", savedMessage.getMessageId());
+			response.put("BotSentAt", savedMessage.getSentAt());
+
+			CommonUtils.logMethodEntry(this, "Sending to WebSocket topic: " + receiverTopic + " and " + senderTopic);
+
+			messagingTemplate.convertAndSend(receiverTopic, savedReply);
+			messagingTemplate.convertAndSend(senderTopic, savedReply);
+		}
+		
 		response.put("messageId", savedMessage.getMessageId());
 		response.put("sentAt", savedMessage.getSentAt());
 		return CommonUtils.prepareResponse(response, "message sent successfully via Messenger.", true);
