@@ -1,7 +1,6 @@
 package com.Messenger.ServiceExt;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -25,7 +24,7 @@ import com.Messenger.Utility.CommonUtils;
 
 @Service
 public class CallAIBotService {
-	
+
 	public static final String BOT_USERNAME = "aibot@messenger-chats.com";
 
 	@Autowired
@@ -35,23 +34,22 @@ public class CallAIBotService {
 	private String aiBotServiceBaseUrl;
 
 	@SuppressWarnings("rawtypes")
-	public String getGenericBotReply(List<MessageEntity> lastNMessages, String currentMessage) {
+	public String getGenericBotReply(List<MessageEntity> lastNMessages, String currentMessage, String token) {
 		CommonUtils.logMethodEntry(this, "Calling AIBot_microservice");
 
 		String aiBotServiceUrl = aiBotServiceBaseUrl + "/generic";
 
 		List<MessageDTO> history = lastNMessages.stream().map(msg -> {
-		    String role = msg.getSender().equalsIgnoreCase(BOT_USERNAME) ? "bot" : "user";
-		    return new MessageDTO(role, msg.getContent(), msg.getSentAt().toString());
+			String role = msg.getSender().equalsIgnoreCase(BOT_USERNAME) ? "bot" : "user";
+			return new MessageDTO(role, msg.getContent(), msg.getSentAt().toString());
 		}).collect(Collectors.toCollection(ArrayList::new));
 
-
 		if (!history.isEmpty()) {
-		    MessageDTO firstMessage = history.get(0);
+			MessageDTO firstMessage = history.get(0);
 
-		    if (firstMessage.getContent().equals(currentMessage)) {
-		        history.remove(0);
-		    }
+			if (firstMessage.getContent().equals(currentMessage)) {
+				history.remove(0);
+			}
 		}
 
 		BotRequestDTO requestBody = new BotRequestDTO(history, currentMessage);
@@ -59,6 +57,8 @@ public class CallAIBotService {
 		try {
 			HttpHeaders headers = new HttpHeaders();
 			headers.setContentType(MediaType.APPLICATION_JSON);
+			headers.set("Authorization", token);
+
 			HttpEntity<BotRequestDTO> request = new HttpEntity<>(requestBody, headers);
 
 			ResponseEntity<Map> response = restTemplate.postForEntity(aiBotServiceUrl, request, Map.class);

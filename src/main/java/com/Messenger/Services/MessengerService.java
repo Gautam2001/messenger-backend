@@ -21,7 +21,7 @@ public interface MessengerService {
 
 	HashMap<String, Object> joinMessengerApp(@Valid UsernameDTO usernameDTO);
 
-	HashMap<String, Object> sendMessage(@Valid SendMessageDTO sendMessageDTO);
+	HashMap<String, Object> sendMessage(@Valid SendMessageDTO sendMessageDTO, String token);
 
 	HashMap<String, Object> getChatHistory(@Valid ChatHistoryDTO chatHistoryDTO);
 

@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -55,10 +56,11 @@ public class MessengerController {
 	}
 
 	@PostMapping("/send-message")
-	public ResponseEntity<HashMap<String, Object>> sendMessage(@RequestBody @Valid SendMessageDTO sendMessageDTO) {
+	public ResponseEntity<HashMap<String, Object>> sendMessage(@RequestBody @Valid SendMessageDTO sendMessageDTO,
+			@RequestHeader(value = "Authorization") String token) {
 		CommonUtils.logMethodEntry(this);
 
-		HashMap<String, Object> response = messengerService.sendMessage(sendMessageDTO);
+		HashMap<String, Object> response = messengerService.sendMessage(sendMessageDTO, token);
 
 		return ResponseEntity.ok(response);
 	}
@@ -108,16 +110,17 @@ public class MessengerController {
 
 		return ResponseEntity.ok(response);
 	}
-	
+
 	@PostMapping("/message-delete")
-	public ResponseEntity<HashMap<String, Object>> deleteMessage(@RequestBody @Valid DeleteMessageDTO deleteMessageDTO) {
+	public ResponseEntity<HashMap<String, Object>> deleteMessage(
+			@RequestBody @Valid DeleteMessageDTO deleteMessageDTO) {
 		CommonUtils.logMethodEntry(this);
 
 		HashMap<String, Object> response = messengerService.deleteMessage(deleteMessageDTO);
 
 		return ResponseEntity.ok(response);
 	}
-	
+
 	@PostMapping("/message-edit")
 	public ResponseEntity<HashMap<String, Object>> editMessage(@RequestBody @Valid EditMessageDTO editMessageDTO) {
 		CommonUtils.logMethodEntry(this);

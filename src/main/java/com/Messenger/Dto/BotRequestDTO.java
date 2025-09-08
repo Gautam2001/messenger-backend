@@ -9,5 +9,5 @@ import lombok.Data;
 @AllArgsConstructor
 public class BotRequestDTO {
 	private List<MessageDTO> history;
-    private String message;
+	private String message;
 }

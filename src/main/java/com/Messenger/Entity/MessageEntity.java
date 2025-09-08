@@ -44,10 +44,10 @@ public class MessageEntity {
 
 	@Column(name = "seen_at")
 	private Instant seenAt;
-	
+
 	@Column(name = "is_deleted")
 	private Boolean isDeleted;
-	
+
 	@Column(name = "is_edited")
 	private Boolean isEdited;
 

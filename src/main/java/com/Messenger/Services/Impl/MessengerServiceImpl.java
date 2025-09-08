@@ -31,9 +31,9 @@ import com.Messenger.Dto.UserContactDTO;
 import com.Messenger.Dto.UsernameDTO;
 import com.Messenger.Entity.MessageEntity;
 import com.Messenger.Entity.MessageEntity.Status;
+import com.Messenger.Entity.MessengerUsersEntity;
 import com.Messenger.ServiceExt.CallAIBotService;
 import com.Messenger.ServiceExt.CallLoginService;
-import com.Messenger.Entity.MessengerUsersEntity;
 import com.Messenger.Services.MessengerService;
 import com.Messenger.Utility.AppException;
 import com.Messenger.Utility.CommonUtils;
@@ -42,12 +42,12 @@ import jakarta.validation.Valid;
 
 @Service
 public class MessengerServiceImpl implements MessengerService {
-	
+
 	public static final String BOT_USERNAME = "aibot@messenger-chats.com";
 
 	@Autowired
 	CallLoginService callLoginService;
-	
+
 	@Autowired
 	CallAIBotService callAIBotService;
 
@@ -65,7 +65,7 @@ public class MessengerServiceImpl implements MessengerService {
 		String username = CommonUtils.normalizeUsername(usernameDTO.getUsername());
 		CommonUtils.logMethodEntry(this, "User Exists Check Request for: " + username);
 		HashMap<String, Object> response = new HashMap<>();
-		
+
 		if (username.equalsIgnoreCase(BOT_USERNAME)) {
 			return CommonUtils.prepareResponse(response, "Username reserved, Try with different username.", false);
 		}
@@ -86,7 +86,7 @@ public class MessengerServiceImpl implements MessengerService {
 		String username = CommonUtils.normalizeUsername(usernameDTO.getUsername());
 		CommonUtils.logMethodEntry(this, "Join Messenger Request for: " + username);
 		HashMap<String, Object> response = new HashMap<>();
-		
+
 		if (username.equalsIgnoreCase(BOT_USERNAME)) {
 			return CommonUtils.prepareResponse(response, "Username reserved, Try with different username.", false);
 		}
@@ -113,7 +113,7 @@ public class MessengerServiceImpl implements MessengerService {
 
 	@Override
 	@Transactional(rollbackFor = Exception.class)
-	public HashMap<String, Object> sendMessage(@Valid SendMessageDTO sendMessageDTO) {
+	public HashMap<String, Object> sendMessage(@Valid SendMessageDTO sendMessageDTO, String token) {
 		HashMap<String, Object> response = new HashMap<>();
 		String senderUsername = CommonUtils.normalizeUsername(sendMessageDTO.getSender());
 		CommonUtils.ValidateUserWithToken(senderUsername);
@@ -141,15 +141,15 @@ public class MessengerServiceImpl implements MessengerService {
 
 		messagingTemplate.convertAndSend(receiverTopic, savedMessage);
 		messagingTemplate.convertAndSend(senderTopic, savedMessage);
-		
-		//Logic for AI Bot
+
+		// Logic for AI Bot
 		if (receiverUsername.equalsIgnoreCase(BOT_USERNAME)) {
-			//get last 6 messages
+			// get last 6 messages
 			List<MessageEntity> lastNMessages = messageDao.getConversationBetweenUsers(senderUsername, receiverUsername,
 					null, PageRequest.of(0, 7));
-			
-			String reply = callAIBotService.getGenericBotReply(lastNMessages, savedMessage.getContent());
-			
+
+			String reply = callAIBotService.getGenericBotReply(lastNMessages, savedMessage.getContent(), token);
+
 			MessageEntity replyMessage = new MessageEntity(receiverUsername, senderUsername, reply);
 			MessageEntity savedReply = messageDao.save(replyMessage);
 			if (savedReply == null || savedReply.getMessageId() == null) {
@@ -166,7 +166,7 @@ public class MessengerServiceImpl implements MessengerService {
 			messagingTemplate.convertAndSend(receiverTopic, savedReply);
 			messagingTemplate.convertAndSend(senderTopic, savedReply);
 		}
-		
+
 		response.put("messageId", savedMessage.getMessageId());
 		response.put("sentAt", savedMessage.getSentAt());
 		return CommonUtils.prepareResponse(response, "message sent successfully via Messenger.", true);
