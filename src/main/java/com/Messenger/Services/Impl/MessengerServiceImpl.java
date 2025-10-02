@@ -149,7 +149,10 @@ public class MessengerServiceImpl implements MessengerService {
 					null, PageRequest.of(0, 7));
 
 			String reply = callAIBotService.getGenericBotReply(lastNMessages, savedMessage.getContent(), token);
-
+			if (reply == null || reply.isBlank()) {
+			    reply = "Sorry, I couldn’t understand that. Please try again.";
+			}
+			
 			MessageEntity replyMessage = new MessageEntity(receiverUsername, senderUsername, reply);
 			MessageEntity savedReply = messageDao.save(replyMessage);
 			if (savedReply == null || savedReply.getMessageId() == null) {
@@ -158,8 +161,8 @@ public class MessengerServiceImpl implements MessengerService {
 			}
 
 			CommonUtils.logMethodEntry(this, "Bot reply saved to Database.");
-			response.put("BotMessageId", savedMessage.getMessageId());
-			response.put("BotSentAt", savedMessage.getSentAt());
+			response.put("BotMessageId", savedReply.getMessageId());
+			response.put("BotSentAt", savedReply.getSentAt());
 
 			CommonUtils.logMethodEntry(this, "Sending to WebSocket topic: " + receiverTopic + " and " + senderTopic);
 
